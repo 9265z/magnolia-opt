@@ -186,9 +186,7 @@ final class MagnoliaSettingsScreen extends Screen {
 			status = "Checking the public GitHub release...";
 		}));
 		addToPage(Page.UPDATES, new ThemeButton(x + half + gap, actionY, half, 20, ui("VIEW UPDATE"), () -> {
-			if (helper.updateState() == MagnoliaUpdater.State.AVAILABLE) {
-				minecraft.setScreenAndShow(new UpdateAvailableScreen(helper, this));
-			} else status = helper.updateDetail();
+			minecraft.setScreenAndShow(new UpdateAvailableScreen(helper, this));
 		}));
 	}
 
@@ -288,7 +286,9 @@ final class MagnoliaSettingsScreen extends Screen {
 		extractTransparentBackground(graphics);
 		Layout layout = layout();
 		Palette palette = palette();
+		if (glass()) graphics.blurBeforeThisStratum();
 		graphics.fill(0, 0, width, height, glass() ? 0x32040810 : 0xD0000000);
+		drawGlassHalo(graphics, layout, palette);
 		panel(graphics, layout.left, layout.top, layout.panelWidth, layout.panelHeight, palette.shell, palette.border, 14);
 		drawAnimatedEdge(graphics, layout, palette);
 		if (!layout.compact) {
@@ -464,12 +464,28 @@ final class MagnoliaSettingsScreen extends Screen {
 	private static void roundFill(GuiGraphicsExtractor graphics, int x, int y, int w, int h, int radius, int color) {
 		if (w <= 0 || h <= 0) return;
 		int r = Math.min(radius, Math.min(w / 2, h / 2));
-		graphics.fill(x + r, y, x + w - r, y + h, color);
+		if (r <= 0) {
+			graphics.fill(x, y, x + w, y + h, color);
+			return;
+		}
 		graphics.fill(x, y + r, x + w, y + h - r, color);
-		for (int offset = 1; offset <= r; offset++) {
-			int inset = (int) Math.ceil(r - Math.sqrt(Math.max(0, r * r - (r - offset) * (r - offset))));
-			graphics.fill(x + inset, y + offset - 1, x + w - inset, y + offset, color);
-			graphics.fill(x + inset, y + h - offset, x + w - inset, y + h - offset + 1, color);
+		for (int row = 0; row < r; row++) {
+			double sampleY = row + 0.5;
+			double boundary = r - Math.sqrt(Math.max(0.0, r * r - (sampleY - r) * (sampleY - r)));
+			int fullInset = Math.max(0, Math.min(r, (int) Math.ceil(boundary)));
+			graphics.fill(x + fullInset, y + row, x + w - fullInset, y + row + 1, color);
+			graphics.fill(x + fullInset, y + h - row - 1, x + w - fullInset, y + h - row, color);
+			int edgePixel = fullInset - 1;
+			if (edgePixel >= 0) {
+				int coverage = RoundedUiMath.cornerCoverage(r, edgePixel, row);
+				int edgeColor = RoundedUiMath.scaleAlpha(color, coverage);
+				if ((edgeColor >>> 24) != 0) {
+					graphics.fill(x + edgePixel, y + row, x + edgePixel + 1, y + row + 1, edgeColor);
+					graphics.fill(x + w - edgePixel - 1, y + row, x + w - edgePixel, y + row + 1, edgeColor);
+					graphics.fill(x + edgePixel, y + h - row - 1, x + edgePixel + 1, y + h - row, edgeColor);
+					graphics.fill(x + w - edgePixel - 1, y + h - row - 1, x + w - edgePixel, y + h - row, edgeColor);
+				}
+			}
 		}
 	}
 
@@ -483,14 +499,29 @@ final class MagnoliaSettingsScreen extends Screen {
 		else graphics.fill(layout.left + 6, y, layout.left + 10, y + 19, palette.accent);
 	}
 
+	private void drawGlassHalo(GuiGraphicsExtractor graphics, Layout layout, Palette palette) {
+		if (!glass()) return;
+		roundFill(graphics, layout.left - 5, layout.top - 5, layout.panelWidth + 10, layout.panelHeight + 10,
+				19, withAlpha(palette.accent, 10));
+		roundFill(graphics, layout.left - 2, layout.top - 2, layout.panelWidth + 4, layout.panelHeight + 4,
+				16, withAlpha(palette.accent, 22));
+	}
+
 	private void drawAnimatedEdge(GuiGraphicsExtractor graphics, Layout layout, Palette palette) {
 		if (!glass()) return;
 		double seconds = (System.currentTimeMillis() - openedAt) / 1000.0;
-		int travel = Math.max(1, layout.panelWidth - 150);
-		int x = layout.left + 25 + (int) ((Math.sin(seconds * 1.55) * 0.5 + 0.5) * travel);
-		graphics.fill(x - 28, layout.top, x + 28, layout.top + 1, withAlpha(palette.accent, 48));
-		graphics.fill(x - 14, layout.top, x + 14, layout.top + 2, withAlpha(palette.accent, 112));
-		graphics.fill(x - 4, layout.top, x + 4, layout.top + 2, withAlpha(WHITE, 125));
+		int travel = Math.max(1, layout.panelWidth - 190);
+		int x = layout.left + 95 + (int) ((Math.sin(seconds * 1.25) * 0.5 + 0.5) * travel);
+		int glowLeft = Math.max(layout.left + 16, x - 90);
+		int glowRight = Math.min(layout.left + layout.panelWidth - 16, x + 90);
+		graphics.fillGradient(glowLeft, layout.top + 2, glowRight, layout.top + 46,
+				withAlpha(palette.accent, 38), withAlpha(palette.accent, 0));
+		roundFill(graphics, x - 72, layout.top - 2, 144, 8, 4, withAlpha(palette.accent, 42));
+		roundFill(graphics, x - 36, layout.top - 1, 72, 5, 3, withAlpha(palette.accent, 92));
+		roundFill(graphics, x - 11, layout.top, 22, 3, 2, withAlpha(WHITE, 155));
+		int sideY = layout.top + 78 + (int) ((Math.cos(seconds * 0.9) * 0.5 + 0.5)
+				* Math.max(1, layout.panelHeight - 160));
+		roundFill(graphics, layout.left, sideY - 25, 3, 50, 2, withAlpha(palette.accent, 55));
 	}
 
 	private void drawTransition(GuiGraphicsExtractor graphics, Layout layout, Palette palette) {
@@ -565,7 +596,7 @@ final class MagnoliaSettingsScreen extends Screen {
 		LEARNING("MEMORY", "Learning", "Choose the confirmed-answer sources"),
 		GAMES("GAMES", "Game Library", "Every supported chat-game format"),
 		OPENAI("OPENAI", "OpenAI", "Connection and API controls"),
-		UPDATES("UPDATES", "Updates", "Verified releases with your approval"),
+		UPDATES("UPDATES", "Updates", "Verified releases"),
 		APPEARANCE("LOOK", "Appearance", "Choose Glass or Minecraft and an accent color");
 
 		private final String label;
