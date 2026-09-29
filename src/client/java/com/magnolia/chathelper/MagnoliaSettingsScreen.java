@@ -289,7 +289,8 @@ final class MagnoliaSettingsScreen extends Screen {
 		if (glass()) graphics.blurBeforeThisStratum();
 		graphics.fill(0, 0, width, height, glass() ? 0x32040810 : 0xD0000000);
 		drawGlassHalo(graphics, layout, palette);
-		panel(graphics, layout.left, layout.top, layout.panelWidth, layout.panelHeight, palette.shell, palette.border, 14);
+		int shellBorder = glass() ? withAlpha(palette.accent, 68) : palette.border;
+		panel(graphics, layout.left, layout.top, layout.panelWidth, layout.panelHeight, palette.shell, shellBorder, 14);
 		drawAnimatedEdge(graphics, layout, palette);
 		if (!layout.compact) {
 			panel(graphics, layout.left + 6, layout.top + 42, layout.sidebarWidth - 12,
@@ -510,18 +511,26 @@ final class MagnoliaSettingsScreen extends Screen {
 	private void drawAnimatedEdge(GuiGraphicsExtractor graphics, Layout layout, Palette palette) {
 		if (!glass()) return;
 		double seconds = (System.currentTimeMillis() - openedAt) / 1000.0;
-		int travel = Math.max(1, layout.panelWidth - 190);
-		int x = layout.left + 95 + (int) ((Math.sin(seconds * 1.25) * 0.5 + 0.5) * travel);
-		int glowLeft = Math.max(layout.left + 16, x - 90);
-		int glowRight = Math.min(layout.left + layout.panelWidth - 16, x + 90);
-		graphics.fillGradient(glowLeft, layout.top + 2, glowRight, layout.top + 46,
-				withAlpha(palette.accent, 38), withAlpha(palette.accent, 0));
-		roundFill(graphics, x - 72, layout.top - 2, 144, 8, 4, withAlpha(palette.accent, 42));
-		roundFill(graphics, x - 36, layout.top - 1, 72, 5, 3, withAlpha(palette.accent, 92));
-		roundFill(graphics, x - 11, layout.top, 22, 3, 2, withAlpha(WHITE, 155));
-		int sideY = layout.top + 78 + (int) ((Math.cos(seconds * 0.9) * 0.5 + 0.5)
-				* Math.max(1, layout.panelHeight - 160));
-		roundFill(graphics, layout.left, sideY - 25, 3, 50, 2, withAlpha(palette.accent, 55));
+		int pathWidth = layout.panelWidth - 2;
+		int pathHeight = layout.panelHeight - 2;
+		int radius = 13;
+		double perimeter = RoundedUiMath.perimeterLength(pathWidth, pathHeight, radius);
+		double head = (seconds * 105.0) % perimeter;
+		for (int index = 68; index >= 0; index--) {
+			double distance = head - index * 2.15;
+			RoundedUiMath.Point point = RoundedUiMath.perimeterPoint(pathWidth, pathHeight, radius, distance);
+			double strength = 1.0 - index / 69.0;
+			int alpha = 8 + (int) (strength * strength * 142.0);
+			int size = index < 8 ? 4 : index < 28 ? 3 : 2;
+			int px = layout.left + 1 + (int) Math.round(point.x()) - size / 2;
+			int py = layout.top + 1 + (int) Math.round(point.y()) - size / 2;
+			roundFill(graphics, px, py, size, size, Math.max(1, size / 2), withAlpha(palette.accent, alpha));
+		}
+		RoundedUiMath.Point leading = RoundedUiMath.perimeterPoint(pathWidth, pathHeight, radius, head);
+		int leadingX = layout.left + 1 + (int) Math.round(leading.x());
+		int leadingY = layout.top + 1 + (int) Math.round(leading.y());
+		roundFill(graphics, leadingX - 5, leadingY - 5, 10, 10, 5, withAlpha(palette.accent, 34));
+		roundFill(graphics, leadingX - 2, leadingY - 2, 5, 5, 3, withAlpha(WHITE, 205));
 	}
 
 	private void drawTransition(GuiGraphicsExtractor graphics, Layout layout, Palette palette) {
