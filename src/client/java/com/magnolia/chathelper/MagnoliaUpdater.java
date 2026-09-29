@@ -149,27 +149,47 @@ final class MagnoliaUpdater {
 		}
 		JsonObject root = GSON.fromJson(response.body(), JsonObject.class);
 		String version = requiredString(root, "tag_name").replaceFirst("^[vV]", "");
+		if (!requiresDownloadAsset(version, currentVersion)) {
+			return new Release(version, null, "", -1L);
+		}
 		JsonArray assets = root.getAsJsonArray("assets");
 		if (assets == null) {
 			throw new IOException("The release has no downloadable assets");
 		}
+		JsonObject selected = null;
 		for (JsonElement element : assets) {
 			JsonObject asset = element.getAsJsonObject();
-			if (!RELEASE_ASSET.equals(requiredString(asset, "name"))) {
-				continue;
+			String name = requiredString(asset, "name");
+			if (RELEASE_ASSET.equals(name)) {
+				selected = asset;
+				break;
 			}
-			long size = asset.has("size") ? asset.get("size").getAsLong() : -1L;
-			if (size <= 0 || size > MAX_DOWNLOAD_BYTES) {
-				throw new IOException("The release asset has an unsafe size");
+			if (selected == null && isReleaseAssetName(name)) {
+				selected = asset;
 			}
-			String digest = requiredString(asset, "digest");
-			if (!digest.toLowerCase(Locale.ROOT).startsWith("sha256:")) {
-				throw new IOException("The release asset has no SHA-256 verification digest");
-			}
-			return new Release(version, URI.create(requiredString(asset, "browser_download_url")),
-					digest.substring("sha256:".length()), size);
 		}
-		throw new IOException("The release is missing " + RELEASE_ASSET);
+		if (selected == null) {
+			throw new IOException("The release is missing a Magnolia OPT JAR");
+		}
+		long size = selected.has("size") ? selected.get("size").getAsLong() : -1L;
+		if (size <= 0 || size > MAX_DOWNLOAD_BYTES) {
+			throw new IOException("The release asset has an unsafe size");
+		}
+		String digest = requiredString(selected, "digest");
+		if (!digest.toLowerCase(Locale.ROOT).startsWith("sha256:")) {
+			throw new IOException("The release asset has no SHA-256 verification digest");
+		}
+		return new Release(version, URI.create(requiredString(selected, "browser_download_url")),
+				digest.substring("sha256:".length()), size);
+	}
+
+	static boolean requiresDownloadAsset(String releaseVersion, String installedVersion) {
+		return ModVersion.compare(releaseVersion, installedVersion) > 0;
+	}
+
+	static boolean isReleaseAssetName(String name) {
+		return name != null && (RELEASE_ASSET.equals(name)
+				|| name.matches("(?i)MagnoliaOPT-[0-9][0-9A-Za-z._-]*\\.jar"));
 	}
 
 	private void download(Release candidate, Path target) throws IOException, InterruptedException {
