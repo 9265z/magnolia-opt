@@ -192,23 +192,37 @@ final class MagnoliaSettingsScreen extends Screen {
 
 	private void addAppearanceWidgets(Layout layout) {
 		int x = layout.contentX;
-		int y = layout.contentY + (layout.compact ? 22 : 31);
+		int y = layout.contentY;
 		int gap = 6;
 		int half = (layout.contentWidth - gap) / 2;
-		addToPage(Page.APPEARANCE, new ThemeButton(x, y, half, 22, ui("GLASS"),
+		int styleButtonY = y + (layout.compact ? 21 : 31);
+		int controlHeight = layout.compact ? 18 : 22;
+		addToPage(Page.APPEARANCE, new ThemeButton(x, styleButtonY, half, controlHeight, ui("GLASS"),
 				() -> setUiStyle("GLASS"), this::glass));
-		addToPage(Page.APPEARANCE, new ThemeButton(x + half + gap, y, half, 22, ui("MINECRAFT"),
+		addToPage(Page.APPEARANCE, new ThemeButton(x + half + gap, styleButtonY, half, controlHeight, ui("MINECRAFT"),
 				() -> setUiStyle("MINECRAFT"), () -> !glass()));
 		String[] colors = {"RED", "BLUE", "PURPLE", "PINK", "BLACK", "WHITE"};
 		int columns = layout.contentWidth >= 390 ? 6 : 3;
 		int buttonGap = 4;
 		int buttonWidth = (layout.contentWidth - buttonGap * (columns - 1)) / columns;
+		int colorButtonY = y + (layout.compact ? 69 : 113);
 		for (int index = 0; index < colors.length; index++) {
 			String color = colors[index];
 			int bx = x + (index % columns) * (buttonWidth + buttonGap);
-			int by = y + (layout.compact ? 32 : 82) + (index / columns) * (layout.compact ? 20 : 24);
+			int by = colorButtonY + (index / columns) * (layout.compact ? 20 : 24);
 			addToPage(Page.APPEARANCE, new ThemeButton(bx, by, buttonWidth, layout.compact ? 18 : 20,
 					ui(color), () -> setUiColor(color), () -> color.equals(helper.uiColor())));
+		}
+		String[] speeds = {"SLOW", "NORMAL", "FAST"};
+		int speedGap = 5;
+		int speedWidth = (layout.contentWidth - speedGap * 2) / 3;
+		int speedButtonY = y + (layout.compact ? 139 : 213);
+		for (int index = 0; index < speeds.length; index++) {
+			String speed = speeds[index];
+			int bx = x + index * (speedWidth + speedGap);
+			addToPage(Page.APPEARANCE, new ThemeButton(bx, speedButtonY, speedWidth,
+					layout.compact ? 18 : 20, ui(speed), () -> setUiLightSpeed(speed),
+					() -> speed.equals(helper.uiLightSpeed())));
 		}
 	}
 
@@ -252,6 +266,13 @@ final class MagnoliaSettingsScreen extends Screen {
 	private void setUiColor(String color) {
 		helper.setUiColor(color);
 		status = color.substring(0, 1) + color.substring(1).toLowerCase(Locale.ROOT) + " accent selected";
+		transitionStarted = System.currentTimeMillis();
+		rebuildWidgets();
+	}
+
+	private void setUiLightSpeed(String speed) {
+		helper.setUiLightSpeed(speed);
+		status = "Perimeter light speed set to " + speed.toLowerCase(Locale.ROOT);
 		transitionStarted = System.currentTimeMillis();
 		rebuildWidgets();
 	}
@@ -417,14 +438,26 @@ final class MagnoliaSettingsScreen extends Screen {
 	private void drawAppearance(GuiGraphicsExtractor graphics, Layout layout, Palette palette) {
 		int x = layout.contentX;
 		int y = layout.contentY;
-		int styleHeight = layout.compact ? 48 : 74;
+		int styleHeight = layout.compact ? 44 : 74;
 		card(graphics, x, y, layout.contentWidth, styleHeight, "UI STYLE", palette);
-		graphics.text(font, ui(glass() ? "Selected: Glass • rounded • translucent • Lato SemiBold"
-				: "Selected: Minecraft • square • opaque • native font"), x + 10, y + (layout.compact ? 36 : 59), palette.accent, false);
-		int colorY = y + styleHeight + 8;
-		card(graphics, x, colorY, layout.contentWidth, Math.max(50, layout.contentHeight - styleHeight - 8), "ACCENT COLOR", palette);
-		graphics.text(font, ui("Selected: " + helper.uiColor().toLowerCase(Locale.ROOT)),
-				x + 10, colorY + (layout.compact ? 44 : 66), palette.accent, true);
+		if (!layout.compact) {
+			graphics.text(font, ui(glass() ? "Selected: Glass • rounded • translucent • Lato SemiBold"
+					: "Selected: Minecraft • square • opaque • native font"), x + 10, y + 59, palette.accent, false);
+		}
+		int colorY = y + (layout.compact ? 48 : 82);
+		int colorHeight = layout.compact ? 66 : 92;
+		card(graphics, x, colorY, layout.contentWidth, colorHeight, "ACCENT COLOR", palette);
+		if (!layout.compact) {
+			graphics.text(font, ui("Selected: " + helper.uiColor().toLowerCase(Locale.ROOT)),
+					x + 10, colorY + 66, palette.accent, true);
+		}
+		int speedY = y + (layout.compact ? 118 : 182);
+		card(graphics, x, speedY, layout.contentWidth, Math.max(48, layout.contentHeight - (speedY - y)),
+				"LIGHT SPEED", palette);
+		if (!layout.compact) {
+			graphics.text(font, ui("Selected: " + helper.uiLightSpeed().toLowerCase(Locale.ROOT)
+					+ " • changes the perimeter glow speed"), x + 10, speedY + 59, palette.accent, true);
+		}
 	}
 
 	private void metric(GuiGraphicsExtractor graphics, int x, int y, int w, int h,
@@ -515,7 +548,7 @@ final class MagnoliaSettingsScreen extends Screen {
 		int pathHeight = layout.panelHeight - 2;
 		int radius = 13;
 		double perimeter = RoundedUiMath.perimeterLength(pathWidth, pathHeight, radius);
-		double head = (seconds * 105.0) % perimeter;
+		double head = (seconds * UiLightSpeed.parse(helper.uiLightSpeed()).pixelsPerSecond()) % perimeter;
 		for (int index = 68; index >= 0; index--) {
 			double distance = head - index * 2.15;
 			RoundedUiMath.Point point = RoundedUiMath.perimeterPoint(pathWidth, pathHeight, radius, distance);
@@ -606,7 +639,7 @@ final class MagnoliaSettingsScreen extends Screen {
 		GAMES("GAMES", "Game Library", "Every supported chat-game format"),
 		OPENAI("OPENAI", "OpenAI", "Connection and API controls"),
 		UPDATES("UPDATES", "Updates", "Verified releases"),
-		APPEARANCE("LOOK", "Appearance", "Choose Glass or Minecraft and an accent color");
+		APPEARANCE("LOOK", "Appearance", "Choose the style, accent color, and light speed");
 
 		private final String label;
 		private final String title;

@@ -41,9 +41,14 @@ final class HelperSettings {
 					loaded.uiColor = "PURPLE";
 					loaded.version = 8;
 				}
+				if (loaded.version < 9) {
+					loaded.uiLightSpeed = UiLightSpeed.NORMAL.name();
+					loaded.version = 9;
+				}
 				loaded.submissionChancePercent = clampPercent(loaded.submissionChancePercent);
 				loaded.uiStyle = validStyle(loaded.uiStyle);
 				loaded.uiColor = validColor(loaded.uiColor);
+				loaded.uiLightSpeed = validLightSpeed(loaded.uiLightSpeed);
 				data = loaded;
 				save();
 			}
@@ -142,6 +147,15 @@ final class HelperSettings {
 		save();
 	}
 
+	String uiLightSpeed() {
+		return validLightSpeed(data.uiLightSpeed);
+	}
+
+	void setUiLightSpeed(String speed) {
+		data.uiLightSpeed = validLightSpeed(speed);
+		save();
+	}
+
 	Path path() {
 		return path;
 	}
@@ -177,8 +191,12 @@ final class HelperSettings {
 		};
 	}
 
+	private static String validLightSpeed(String speed) {
+		return UiLightSpeed.parse(speed).name();
+	}
+
 	private static final class Data {
-		int version = 8;
+		int version = 9;
 		boolean autoSubmitEnabled = true;
 		boolean autoAnswerQuestions = true;
 		boolean learningEnabled = true;
@@ -189,5 +207,6 @@ final class HelperSettings {
 		int submissionChancePercent = 80;
 		String uiStyle = "GLASS";
 		String uiColor = "PURPLE";
+		String uiLightSpeed = UiLightSpeed.NORMAL.name();
 	}
 }

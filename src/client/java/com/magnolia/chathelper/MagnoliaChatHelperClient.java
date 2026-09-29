@@ -695,6 +695,14 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 		settings.setUiColor(color);
 	}
 
+	String uiLightSpeed() {
+		return settings.uiLightSpeed();
+	}
+
+	void setUiLightSpeed(String speed) {
+		settings.setUiLightSpeed(speed);
+	}
+
 	void checkForUpdates() {
 		updatePromptShown = false;
 		updater.check();

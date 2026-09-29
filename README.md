@@ -19,6 +19,7 @@ No server-side installation is needed.
 - The redesigned GUI uses a responsive sidebar on large windows and compact two-row tabs at smaller GUI scales.
 - Appearance offers **Glass** (rounded translucent UI with bundled Lato SemiBold font) and **Minecraft** (square opaque UI with the native Minecraft font).
 - Both styles support red, blue, purple, pink, black, and white accents, saved between launches.
+- The Look tab includes persistent **Slow**, **Normal**, and **Fast** speed presets for the animated Glass perimeter light.
 - The Updates page controls launch checks and shows the installed version, newest release, and verification status.
 - Game Library shows a prompt-and-answer example for every supported Magnolia chat game.
 - Its master switch, auto-submit, trivia auto-answer, **Auto save answers**, and auto-welcome toggles persist between launches.
