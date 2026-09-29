@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"id": "magnolia_chat_helper",
+	"version": "${version}",
+	"name": "Magnolia OPT",
+	"description": "Magnolia chat-game helper with a native graphical menu, answer automation, OpenAI trivia, and persistent memory.",
+	"authors": [
+		"9265z"
+	],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.magnolia.chathelper.MagnoliaChatHelperClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25"
+	}
+}
