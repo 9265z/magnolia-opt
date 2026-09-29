@@ -86,7 +86,14 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			}
 		});
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receivedAt) -> {
-			capturePlayerAnswer(sender.name(), message.getString());
+			String text = message.getString();
+			if (sender == null) {
+				// Servers can deliver profileless/disguised chat through this event. There is
+				// no GameProfile in that case, so learn from the formatted line instead.
+				captureFormattedPlayerAnswer(text);
+				return;
+			}
+			capturePlayerAnswer(sender.name(), text);
 		});
 		ClientSendMessageEvents.CHAT.register(message -> {
 			lastSentMessage = message.trim();
