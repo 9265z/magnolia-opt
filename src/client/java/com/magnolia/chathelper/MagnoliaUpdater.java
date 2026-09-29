@@ -27,7 +27,7 @@ import java.util.jar.JarFile;
 
 final class MagnoliaUpdater {
 	private static final URI LATEST_RELEASE = URI.create(
-			"https://api.github.com/repos/devoidor/magnolia-opt/releases/latest");
+			"https://api.github.com/repos/9265z/magnolia-opt/releases/latest");
 	private static final String RELEASE_ASSET = "MagnoliaOPT.jar";
 	private static final long MAX_DOWNLOAD_BYTES = 150L * 1024L * 1024L;
 	private static final Gson GSON = new Gson();

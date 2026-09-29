@@ -74,7 +74,7 @@ GUI preferences are stored locally in `config/magnolia-chat-helper/settings.json
 
 ## Verified updates
 
-Magnolia OPT checks the public [`devoidor/magnolia-opt`](https://github.com/devoidor/magnolia-opt) releases in the background when Minecraft launches. If a newer version exists, an in-game warning offers **UPDATE NOW** or **LATER**. Updates are never installed merely because a release was detected, and the mod never forces Minecraft to restart.
+Magnolia OPT checks the public [`9265z/magnolia-opt`](https://github.com/9265z/magnolia-opt) releases in the background when Minecraft launches. If a newer version exists, an in-game warning offers **UPDATE NOW** or **LATER**. Updates are never installed merely because a release was detected, and the mod never forces Minecraft to restart.
 
 Before replacing the active `MagnoliaOPT.jar`, the updater verifies GitHub's SHA-256 asset digest, the Fabric mod id, and the version embedded in `fabric.mod.json`. A successful update becomes active after Minecraft is restarted. Update checks can be disabled on the Updates page in `/maggui`; `/mag update check` starts a manual check.
 

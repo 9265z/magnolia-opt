@@ -60,7 +60,7 @@ final class UpdateAvailableScreen extends Screen {
 		graphics.centeredText(font,
 				"Installed " + helper.currentVersion() + "  →  Available " + helper.availableVersion(),
 				left + panelWidth / 2, top + 36, GREEN);
-		graphics.centeredText(font, "Updates come only from github.com/devoidor/magnolia-opt.",
+		graphics.centeredText(font, "Updates come only from github.com/9265z/magnolia-opt.",
 				left + panelWidth / 2, top + 57, MUTED);
 		graphics.centeredText(font, "The JAR, SHA-256 digest, mod id, and version are verified first.",
 				left + panelWidth / 2, top + 71, MUTED);
