@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 final class CraftResolver {
+	private static final Set<String> LOWERCASE_WORDS = Set.of("a", "an", "and", "of", "on", "the", "to", "with");
 	private final Map<String, List<String>> answers = new LinkedHashMap<>();
 
 	static CraftResolver load() {
@@ -42,6 +44,21 @@ final class CraftResolver {
 		if (columns.length != 2) {
 			return;
 		}
-		answers.computeIfAbsent(columns[0], ignored -> new ArrayList<>()).add(columns[1]);
+		answers.computeIfAbsent(columns[0], ignored -> new ArrayList<>()).add(displayName(columns[1]));
+	}
+
+	static String displayName(String value) {
+		String[] words = value.trim().toLowerCase(java.util.Locale.ROOT).split("\\s+");
+		for (int index = 0; index < words.length; index++) {
+			String word = words[index];
+			if ("tnt".equals(word)) {
+				words[index] = "TNT";
+			} else if (index > 0 && LOWERCASE_WORDS.contains(word)) {
+				words[index] = word;
+			} else if (!word.isEmpty()) {
+				words[index] = Character.toUpperCase(word.charAt(0)) + word.substring(1);
+			}
+		}
+		return String.join(" ", words);
 	}
 }

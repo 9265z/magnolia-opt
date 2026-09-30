@@ -28,7 +28,7 @@ final class ChatGameDetector {
 	private static final Pattern REVEAL = Pattern.compile(
 			"(?i)\\b(?:correct\\s+(?:answer|word)(?:\\s+(?:is|was))?|answer\\s+(?:is|was)|word\\s+(?:is|was))\\b\\s*[:=\\-]?\\s*[\\\"'`]?([a-z][a-z' -]{1,49}?)[\\\"'`]?(?=[.!]|$)");
 	private static final Pattern LABELED_REVEAL = Pattern.compile(
-			"(?i)\\banswer\\s*[»>:=-]+\\s*[\\\"'`]?([a-z0-9][a-z0-9' .-]{0,49}?)[\\\"'`]?(?=[.!]|$)");
+			"(?i)\\banswer\\s*[»>:=-]+\\s*[\\\"'`]?(.{1,64}?)[\\\"'`]?\\s*$");
 	private static final Set<String> FILLERS = Set.of(
 			"the", "word", "words", "letters", "letter", "is", "are", "in", "chat", "to", "win", "first", "type", "write", "repeat");
 	private boolean waitingForCraftIngredients;
@@ -153,6 +153,11 @@ final class ChatGameDetector {
 		return IGNORED_EVENT.matcher(normalizeDecorations(message)).find();
 	}
 
+	boolean isChatGameHeader(String message) {
+		String clean = normalizeDecorations(message);
+		return CHAT_GAME_MARKER.matcher(clean).find() || clean.contains("ᴄʜᴀᴛ ɢᴀᴍᴇ");
+	}
+
 	private static String extractRandomText(String value) {
 		String candidate = value.replaceFirst("(?i)\\s*be\\s+the\\s+first.*$", "").trim();
 		Matcher matcher = RANDOM_TEXT_VALUE.matcher(candidate);
@@ -192,7 +197,8 @@ final class ChatGameDetector {
 		String clean = normalizeDecorations(message);
 		Matcher labeled = LABELED_REVEAL.matcher(clean);
 		if (labeled.find()) {
-			return Optional.of(labeled.group(1).trim());
+			String answer = labeled.group(1).trim().replaceFirst("[.!]$", "").trim();
+			return answer.isBlank() ? Optional.empty() : Optional.of(answer);
 		}
 		Matcher matcher = REVEAL.matcher(clean);
 		return matcher.find() ? Optional.of(matcher.group(1).trim()) : Optional.empty();

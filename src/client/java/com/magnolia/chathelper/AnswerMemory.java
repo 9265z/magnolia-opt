@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -60,9 +59,7 @@ final class AnswerMemory {
 	}
 
 	void remember(GamePrompt prompt, String answer) {
-		String normalized = prompt.preservesCase()
-				? answer.trim()
-				: answer.trim().toLowerCase(Locale.ROOT);
+		String normalized = answer.trim();
 		MemoryEntry previous = data.entries.get(prompt.key());
 		int seen = previous == null ? 1 : previous.timesSeen + 1;
 		data.entries.put(prompt.key(), new MemoryEntry(prompt.clue(), normalized, seen, Instant.now().toString()));

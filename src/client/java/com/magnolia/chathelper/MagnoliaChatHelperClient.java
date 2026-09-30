@@ -108,6 +108,9 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 		if (isDuplicate(message)) {
 			return;
 		}
+		if (detector.isChatGameHeader(message)) {
+			resetRoundContext();
+		}
 		captureFormattedPlayerAnswer(message);
 		handleAutoWelcome(message);
 		if (!memory.enabled() || detector.isIgnoredEvent(message)) {
@@ -192,6 +195,15 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			showAnswers("dictionary", currentAnswers);
 			startGuessing(currentAnswers);
 		}
+	}
+
+	private void resetRoundContext() {
+		questionRoundOpen = false;
+		stopGuessing();
+		currentPrompt = null;
+		currentAnswers = List.of();
+		recentPlayerAnswers.clear();
+		pendingWinner = null;
 	}
 
 	private void handleAutoWelcome(String message) {
@@ -784,10 +796,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	}
 
 	private String normalizeManualAnswer(String answer) {
-		String trimmed = answer.trim();
-		return currentPrompt != null && currentPrompt.preservesCase()
-				? trimmed
-				: trimmed.toLowerCase(Locale.ROOT);
+		return answer.trim();
 	}
 
 	String forgetFromGui() {
