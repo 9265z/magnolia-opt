@@ -51,8 +51,6 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	private long nextGuessAt;
 	private GamePrompt currentPrompt;
 	private List<String> currentAnswers = List.of();
-	private String lastSentMessage;
-	private Instant lastSentAt = Instant.EPOCH;
 	private String lastProcessedMessage;
 	private Instant lastProcessedAt = Instant.EPOCH;
 	private boolean apiPromptShown;
@@ -64,6 +62,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	private final PriorityQueue<PendingWelcome> pendingWelcomes =
 			new PriorityQueue<>(Comparator.comparingLong(PendingWelcome::sendAt));
 	private final Map<String, PlayerAnswer> recentPlayerAnswers = new LinkedHashMap<>();
+	private PendingWinner pendingWinner;
 
 	@Override
 	public void onInitializeClient() {
@@ -96,8 +95,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			capturePlayerAnswer(sender.name(), text);
 		});
 		ClientSendMessageEvents.CHAT.register(message -> {
-			lastSentMessage = message.trim();
-			lastSentAt = Instant.now();
+			captureLocalPlayerAnswer(message);
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(this::sendNextGuess);
 		ClientTickEvents.END_CLIENT_TICK.register(this::sendPendingWelcome);
@@ -123,7 +121,6 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 		if (settings.learnFromReveals()) {
 			detector.revealedAnswer(message).ifPresent(this::learnConfirmedAnswer);
 		}
-		learnFromPlayerWin(message);
 		if (roundFinished) {
 			finishQuestionRound();
 		}
@@ -135,6 +132,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 
 		currentPrompt = detected.get();
 		recentPlayerAnswers.clear();
+		pendingWinner = null;
 		if (currentPrompt.type() == GamePrompt.Type.QUESTION) {
 			questionRoundOpen = true;
 		}
@@ -153,7 +151,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			return;
 		}
 		if (currentPrompt.type() == GamePrompt.Type.UNREVERSE) {
-			currentAnswers = List.of(currentPrompt.unreverseAnswer());
+			currentAnswers = currentPrompt.unreverseAnswers();
 			showAnswers("unreverse", currentAnswers);
 			startGuessing(currentAnswers);
 			return;
@@ -272,7 +270,6 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	private void finishQuestionRound() {
 		questionRoundOpen = false;
 		stopGuessing();
-		recentPlayerAnswers.clear();
 	}
 
 	private void capturePlayerAnswer(String playerName, String decoratedMessage) {
@@ -280,10 +277,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			return;
 		}
 		String answer = ChatLearningParser.playerAnswer(playerName, decoratedMessage);
-		if (answer != null && currentPrompt.accepts(answer)) {
-			recentPlayerAnswers.put(playerName.toLowerCase(Locale.ROOT),
-					new PlayerAnswer(currentPrompt.key(), answer, Instant.now()));
-		}
+		recordPlayerAnswer(playerName, answer);
 	}
 
 	private void captureFormattedPlayerAnswer(String message) {
@@ -291,11 +285,30 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			return;
 		}
 		ChatLearningParser.formattedPlayerAnswer(message).ifPresent(candidate -> {
-			if (currentPrompt.accepts(candidate.answer())) {
-				recentPlayerAnswers.put(candidate.playerName().toLowerCase(Locale.ROOT),
-						new PlayerAnswer(currentPrompt.key(), candidate.answer(), Instant.now()));
-			}
+			recordPlayerAnswer(candidate.playerName(), candidate.answer());
 		});
+	}
+
+	private void captureLocalPlayerAnswer(String answer) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.player != null) {
+			recordPlayerAnswer(client.player.getName().getString(), answer);
+		}
+	}
+
+	private void recordPlayerAnswer(String playerName, String answer) {
+		if (!memory.enabled() || !settings.learningEnabled() || !settings.learnFromWinners()
+				|| currentPrompt == null || answer == null || !currentPrompt.accepts(answer)) {
+			return;
+		}
+		String playerKey = playerName.toLowerCase(Locale.ROOT);
+		PlayerAnswer candidate = new PlayerAnswer(currentPrompt.key(), answer.trim(), Instant.now());
+		recentPlayerAnswers.put(playerKey, candidate);
+		if (pendingWinner != null && pendingWinner.playerName().equals(playerKey)
+				&& pendingWinner.promptKey().equals(candidate.promptKey())
+				&& Duration.between(pendingWinner.announcedAt(), candidate.receivedAt()).abs().toMillis() <= 1_500) {
+			rememberWinnerAnswer(playerName, candidate);
+		}
 	}
 
 	private void learnFromWinnerAnnouncement(String message) {
@@ -306,15 +319,27 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 		if (winner.isEmpty()) {
 			return;
 		}
-		PlayerAnswer candidate = recentPlayerAnswers.get(winner.get().toLowerCase(Locale.ROOT));
+		String winnerKey = winner.get().toLowerCase(Locale.ROOT);
+		pendingWinner = new PendingWinner(currentPrompt.key(), winnerKey, Instant.now());
+		PlayerAnswer candidate = recentPlayerAnswers.get(winnerKey);
 		if (candidate == null || !candidate.promptKey().equals(currentPrompt.key())
 				|| Duration.between(candidate.receivedAt(), Instant.now()).toSeconds() > 45
 				|| !currentPrompt.accepts(candidate.answer())) {
 			return;
 		}
+		rememberWinnerAnswer(winner.get(), candidate);
+	}
+
+	private void rememberWinnerAnswer(String winnerName, PlayerAnswer candidate) {
+		if (currentPrompt == null || !candidate.promptKey().equals(currentPrompt.key())
+				|| !currentPrompt.accepts(candidate.answer())) {
+			return;
+		}
 		memory.remember(currentPrompt, candidate.answer());
 		currentAnswers = List.of(candidate.answer());
-		LOGGER.info("Learned answer '{}' for '{}' from winner {}", candidate.answer(), currentPrompt.clue(), winner.get());
+		pendingWinner = null;
+		LOGGER.info("Replaced memory with confirmed answer '{}' for '{}' from winner {}",
+				candidate.answer(), currentPrompt.clue(), winnerName);
 	}
 
 	private void askOpenAi(GamePrompt prompt, List<String> fallbackAnswers) {
@@ -379,8 +404,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			return;
 		}
 		client.getConnection().sendChat(guess);
-		lastSentMessage = guess;
-		lastSentAt = Instant.now();
+		captureLocalPlayerAnswer(guess);
 		localMessage(Component.literal("[Magnolia OPT] Submitted guess: ")
 				.withStyle(ChatFormatting.DARK_AQUA)
 				.append(Component.literal(guess).withStyle(ChatFormatting.GREEN)));
@@ -403,21 +427,9 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	private void learnConfirmedAnswer(String answer) {
 		if (settings.learningEnabled() && currentPrompt != null && currentPrompt.accepts(answer)) {
 			memory.remember(currentPrompt, answer);
+			currentAnswers = List.of(answer);
+			pendingWinner = null;
 			LOGGER.info("Learned answer '{}' for '{}' from a server reveal", answer, currentPrompt.clue());
-		}
-	}
-
-	private void learnFromPlayerWin(String message) {
-		Minecraft client = Minecraft.getInstance();
-		if (!settings.learningEnabled() || currentPrompt == null || client.player == null || lastSentMessage == null) {
-			return;
-		}
-		if (Duration.between(lastSentAt, Instant.now()).toSeconds() > 45) {
-			return;
-		}
-		if (detector.looksLikeWinFor(message, client.player.getName().getString()) && currentPrompt.accepts(lastSentMessage)) {
-			memory.remember(currentPrompt, lastSentMessage);
-			LOGGER.info("Learned answer '{}' after the local player won", lastSentMessage);
 		}
 	}
 
@@ -832,6 +844,9 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	}
 
 	private record PlayerAnswer(String promptKey, String answer, Instant receivedAt) {
+	}
+
+	private record PendingWinner(String promptKey, String playerName, Instant announcedAt) {
 	}
 
 	private record PendingWelcome(long sendAt, long delayMillis) {

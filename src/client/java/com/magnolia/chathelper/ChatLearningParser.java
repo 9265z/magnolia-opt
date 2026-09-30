@@ -5,7 +5,8 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 final class ChatLearningParser {
-	private static final Pattern ROUND_WINNER = Pattern.compile("(?i)\\b([a-z0-9_]{1,20})\\s+was\\s+first!");
+	private static final Pattern ROUND_WINNER = Pattern.compile(
+			"(?i)\\b([a-z0-9_]{1,20})\\s+(?:was\\s+first!|won\\s+the\\s+chat\\s+game!?|answered\\s+correctly!?)");
 	private static final Pattern TRAILING_PLAYER = Pattern.compile(
 			"(?i)([a-z0-9_]{1,20})(?:\\s+\\[[^]]*])?\\s*$");
 
@@ -21,7 +22,8 @@ final class ChatLearningParser {
 		String clean = clean(decoratedMessage);
 		int playerIndex = clean.toLowerCase(Locale.ROOT).indexOf(playerName.toLowerCase(Locale.ROOT));
 		if (playerIndex < 0) {
-			return null;
+			// Fabric may provide the signed chat body without the rendered name/prefix.
+			return clean.isBlank() || clean.length() > 128 ? null : clean;
 		}
 		int start = playerIndex + playerName.length();
 		int separator = separatorAfter(clean, start);

@@ -30,7 +30,20 @@ final class AnswerMemory {
 		try (Reader reader = Files.newBufferedReader(path)) {
 			Data loaded = GSON.fromJson(reader, Data.class);
 			if (loaded != null && loaded.entries != null) {
+				boolean migrated = false;
+				if (loaded.version < 2) {
+					Map<String, MemoryEntry> upgraded = new LinkedHashMap<>();
+					loaded.entries.forEach((key, entry) -> upgraded.put(
+							key.startsWith("unreverse:") ? "unreverse-v2:" + key.substring("unreverse:".length()) : key,
+							entry));
+					loaded.entries = upgraded;
+					loaded.version = 2;
+					migrated = true;
+				}
 				data = loaded;
+				if (migrated) {
+					save();
+				}
 			}
 		} catch (IOException | RuntimeException exception) {
 			MagnoliaChatHelperClient.LOGGER.error("Could not load answer memory from {}", path, exception);
@@ -95,7 +108,7 @@ final class AnswerMemory {
 	}
 
 	private static final class Data {
-		int version = 1;
+		int version = 2;
 		boolean enabled = true;
 		Map<String, MemoryEntry> entries = new LinkedHashMap<>();
 	}

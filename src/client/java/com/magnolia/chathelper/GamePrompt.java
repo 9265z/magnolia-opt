@@ -46,16 +46,22 @@ record GamePrompt(Type type, String clue, String key) {
 			return key.equals(scramble(answer).key) && caseSignature(clue).equals(caseSignature(answer));
 		}
 		if (type == Type.UNREVERSE) {
-			return unreverseAnswer().equals(answer.trim());
+			return unreverseAnswers().contains(answer.trim());
 		}
 		return !answer.isBlank();
 	}
 
 	String unreverseAnswer() {
-		return Arrays.stream(clue.split(" "))
+		return unreverseAnswers().getFirst();
+	}
+
+	List<String> unreverseAnswers() {
+		String wordByWord = Arrays.stream(clue.split(" "))
 				.map(word -> new StringBuilder(word).reverse().toString())
 				.reduce((left, right) -> left + " " + right)
 				.orElse("");
+		String wholePhrase = new StringBuilder(clue).reverse().toString();
+		return wordByWord.equals(wholePhrase) ? List.of(wordByWord) : List.of(wordByWord, wholePhrase);
 	}
 
 	boolean preservesCase() {

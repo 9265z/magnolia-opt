@@ -27,7 +27,7 @@ No server-side installation is needed.
 - **Auto /welcome** recognizes each Magnolia new-player banner and sends `/welcome` after a newly randomized 2–4 second delay. Multiple joins are queued independently. `/mag welcome` toggles it too.
 - Turning **Auto-answer trivia** off still shows question answers, but will not submit them.
 - Turning **Learn & save** off prevents server reveals, wins, and manually entered responses from being added to memory. Existing memories remain available.
-- The Learning page separately controls saving from Magnolia's `Answer » ...` reveals and from the exact chat message associated with `username was first!`. Both sources are enabled by default.
+- The Learning page separately controls saving from Magnolia's `Answer » ...` reveals and from the exact chat message associated with a winner announcement. Confirmed answers replace older guesses, and both sources are enabled by default.
 - Use the Current Game section to save or forget a response, show answers in chat, or copy the best answer.
 - Set up or test the OpenAI connection directly from the OpenAI section.
 - When a supported prompt appears, click an answer to copy it.
