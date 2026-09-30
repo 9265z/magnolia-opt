@@ -41,6 +41,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 	private AnswerMemory memory;
 	private HelperSettings settings;
 	private Unscrambler unscrambler;
+	private UnreverseResolver unreverseResolver;
 	private CraftResolver craftResolver;
 	private TriviaResolver triviaResolver;
 	private OpenAiTriviaClient openAi;
@@ -72,6 +73,7 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 		settings.load();
 		updater = new MagnoliaUpdater();
 		unscrambler = Unscrambler.load();
+		unreverseResolver = UnreverseResolver.load();
 		craftResolver = CraftResolver.load();
 		triviaResolver = TriviaResolver.load();
 		openAi = new OpenAiTriviaClient(OpenAiConfig.load());
@@ -154,9 +156,15 @@ public final class MagnoliaChatHelperClient implements ClientModInitializer {
 			return;
 		}
 		if (currentPrompt.type() == GamePrompt.Type.UNREVERSE) {
-			currentAnswers = currentPrompt.unreverseAnswers();
+			UnreverseResolver.Decision decision = unreverseResolver.solve(currentPrompt);
+			currentAnswers = decision.displayAnswers();
 			showAnswers("unreverse", currentAnswers);
-			startGuessing(currentAnswers);
+			if (decision.confident()) {
+				startGuessing(decision.automaticAnswers());
+			} else {
+				localMessage(Component.literal("[Magnolia OPT] Both reverse directions look possible; auto-submit withheld.")
+						.withStyle(ChatFormatting.GOLD));
+			}
 			return;
 		}
 		if (currentPrompt.type() == GamePrompt.Type.QUESTION) {
