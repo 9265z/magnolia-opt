@@ -5,7 +5,7 @@ A client-only Fabric 26.2 mod that detects Magnolia chat games, solves common En
 ## Install
 
 1. Use a Minecraft 26.2 Fabric profile with Fabric Loader 0.19.5 or newer.
-2. Put the single `MagnoliaOPT.jar` file in that profile's `mods` folder.
+2. Put the matching `MagnoliaOPT-26.2.jar` or `MagnoliaOPT-26.3.jar` file in that profile's `mods` folder.
 
 The complete matching Fabric API 26.2 distribution is embedded inside this JAR. A separate Fabric API installation is not required. Fabric Loader itself must still be the selected Minecraft mod loader because it is what launches every Fabric mod.
 
@@ -77,7 +77,7 @@ GUI preferences are stored locally in `config/magnolia-chat-helper/settings.json
 
 Magnolia OPT checks the public [`9265z/magnolia-opt`](https://github.com/9265z/magnolia-opt) releases in the background when Minecraft launches. If a newer version exists, an in-game warning offers **UPDATE NOW** or **LATER**. Updates are never installed merely because a release was detected, and the mod never forces Minecraft to restart.
 
-Before replacing the active `MagnoliaOPT.jar`, the updater verifies GitHub's SHA-256 asset digest, the Fabric mod id, and the version embedded in `fabric.mod.json`. A successful update becomes active after Minecraft is restarted. Update checks can be disabled on the Updates page in `/maggui`; `/mag update check` starts a manual check.
+Before replacing the active JAR, the updater selects the release asset matching the running Minecraft version, then verifies GitHub's SHA-256 asset digest, the Fabric mod id, and the version embedded in `fabric.mod.json`. A successful update becomes active after Minecraft is restarted. Update checks can be disabled on the Updates page in `/maggui`; `/mag update check` starts a manual check.
 
 ## Prompt tuning
 

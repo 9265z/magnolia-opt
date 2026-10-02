@@ -37,6 +37,7 @@ final class MagnoliaUpdater {
 			.build();
 	private final AtomicBoolean busy = new AtomicBoolean();
 	private final String currentVersion;
+	private final String minecraftVersion;
 	private volatile State state = State.IDLE;
 	private volatile Release release;
 	private volatile String detail = "Update check has not run yet";
@@ -45,6 +46,9 @@ final class MagnoliaUpdater {
 		currentVersion = FabricLoader.getInstance().getModContainer("magnolia_chat_helper")
 				.map(container -> container.getMetadata().getVersion().getFriendlyString())
 				.orElse("0.0.0");
+		minecraftVersion = FabricLoader.getInstance().getModContainer("minecraft")
+				.map(container -> container.getMetadata().getVersion().getFriendlyString())
+				.orElse("unknown");
 	}
 
 	void check() {
@@ -160,16 +164,13 @@ final class MagnoliaUpdater {
 		for (JsonElement element : assets) {
 			JsonObject asset = element.getAsJsonObject();
 			String name = requiredString(asset, "name");
-			if (RELEASE_ASSET.equals(name)) {
+			if (isCompatibleReleaseAsset(name, minecraftVersion)) {
 				selected = asset;
 				break;
 			}
-			if (selected == null && isReleaseAssetName(name)) {
-				selected = asset;
-			}
 		}
 		if (selected == null) {
-			throw new IOException("The release is missing a Magnolia OPT JAR");
+			throw new IOException("The release has no Magnolia OPT build for Minecraft " + minecraftVersion);
 		}
 		long size = selected.has("size") ? selected.get("size").getAsLong() : -1L;
 		if (size <= 0 || size > MAX_DOWNLOAD_BYTES) {
@@ -190,6 +191,18 @@ final class MagnoliaUpdater {
 	static boolean isReleaseAssetName(String name) {
 		return name != null && (RELEASE_ASSET.equals(name)
 				|| name.matches("(?i)MagnoliaOPT-[0-9][0-9A-Za-z._-]*\\.jar"));
+	}
+
+	static boolean isCompatibleReleaseAsset(String name, String minecraftVersion) {
+		if (name == null || minecraftVersion == null) {
+			return false;
+		}
+		String safeVersion = minecraftVersion.replaceAll("[^0-9A-Za-z._-]", "-");
+		if (("MagnoliaOPT-" + safeVersion + ".jar").equalsIgnoreCase(name)) {
+			return true;
+		}
+		// v1.10.2 and older used MagnoliaOPT.jar for the original 26.2 build.
+		return "26.2".equals(minecraftVersion) && RELEASE_ASSET.equals(name);
 	}
 
 	private void download(Release candidate, Path target) throws IOException, InterruptedException {
